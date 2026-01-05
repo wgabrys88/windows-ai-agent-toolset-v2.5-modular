@@ -1,3 +1,6 @@
+# Run with: python main.py test_scenarios.txt <scenario_number>
+# Example: python main.py test_scenarios.txt 1
+
 # main.py
 from __future__ import annotations
 import os
