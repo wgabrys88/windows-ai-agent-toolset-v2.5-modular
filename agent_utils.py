@@ -1,7 +1,7 @@
 # agent_utils.py
 from __future__ import annotations
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Dict, Tuple
 
 def parse_coords(arg_str: Any) -> Tuple[float, float]:
     try:
@@ -22,14 +22,8 @@ def parse_coords(arg_str: Any) -> Tuple[float, float]:
         y = float(y)
     except:
         y = 500.0
-    if x < 0.0:
-        x = 0.0
-    elif x > 1000.0:
-        x = 1000.0
-    if y < 0.0:
-        y = 0.0
-    elif y > 1000.0:
-        y = 1000.0
+    x = max(0.0, min(1000.0, x))
+    y = max(0.0, min(1000.0, y))
     return x, y
 
 def parse_text(arg_str: Any) -> str:
@@ -38,7 +32,7 @@ def parse_text(arg_str: Any) -> str:
     except:
         a = {}
     t = a.get("text", "") if isinstance(a, dict) else ""
-    return "" if t is None else str(t)
+    return str(t) if t is not None else ""
 
 def prune_old_screenshots(messages: List[Dict[str, Any]], keep_last: int) -> List[Dict[str, Any]]:
     if keep_last <= 0:
@@ -48,16 +42,3 @@ def prune_old_screenshots(messages: List[Dict[str, Any]], keep_last: int) -> Lis
         return messages
     drop = set(idxs[:-keep_last])
     return [m for i, m in enumerate(messages) if i not in drop]
-
-def get_disabled_tools(tools_schema: List[Dict[str, Any]]) -> set:
-    disabled = set()
-    for t in tools_schema:
-        try:
-            fn = t.get("function", {})
-            name = fn.get("name", "")
-            desc = (fn.get("description") or "")
-            if "UNAVAILABLE" in desc.upper():
-                disabled.add(name)
-        except:
-            pass
-    return disabled
