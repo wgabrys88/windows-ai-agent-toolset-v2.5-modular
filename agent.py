@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import time
 import base64
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import winapi
 from llm_client import post_to_lm
@@ -78,14 +78,14 @@ def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str,
                         f.write(png_bytes)
                     dump_idx += 1
 
-                tool_text = "ok" if fn is None else ("ok file=" + fn)
+                tool_text = "Screenshot image captured."
                 b64 = base64.b64encode(png_bytes).decode("ascii")
 
                 messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": tool_text})
                 messages.append({
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "screen"},
+                        {"type": "text", "text": "captured image data"},
                         {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b64}},
                     ],
                 })
@@ -93,29 +93,25 @@ def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str,
 
             elif name == "move_mouse":
                 xn, yn = parse_coords(arg_str)
-                screen_w, screen_h = winapi.move_mouse_norm(xn, yn)
+                winapi.move_mouse_norm(xn, yn)
                 time.sleep(0.06)
-                cx, cy, cnx, cny = winapi.cursor_pos_normalized(screen_w, screen_h)
-                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": f"ok cursor_px={cx},{cy} cursor_norm={cnx},{cny}"})
+                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": "Mouse device position changed."})
 
             elif name == "click_mouse":
                 winapi.click_mouse()
                 time.sleep(0.06)
-                cx, cy, cnx, cny = winapi.cursor_pos_normalized(last_screen_w, last_screen_h)
-                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": f"ok cursor_px={cx},{cy} cursor_norm={cnx},{cny}"})
+                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": "Left mouse button clicked."})
 
             elif name == "type_text":
                 text = parse_text(arg_str)
                 winapi.type_text(text)
                 time.sleep(0.06)
-                cx, cy, cnx, cny = winapi.cursor_pos_normalized(last_screen_w, last_screen_h)
-                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": f"ok typed={text} cursor_px={cx},{cy} cursor_norm={cnx},{cny}"})
+                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": "Keyboard was used to type text."})
 
             elif name == "scroll_down":
                 winapi.scroll_down()
                 time.sleep(0.06)
-                cx, cy, cnx, cny = winapi.cursor_pos_normalized(last_screen_w, last_screen_h)
-                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": f"ok cursor_px={cx},{cy} cursor_norm={cnx},{cny}"})
+                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": "Mouse wheel action completed."})
 
             else:
                 messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": "error unknown_tool"})
