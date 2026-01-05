@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 import winapi
 from llm_client import post_to_lm
-from agent_utils import parse_coords, parse_text, prune_old_screenshots, get_disabled_tools
+from agent_utils import parse_coords, parse_text, prune_old_screenshots
 
 def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str, Any]], cfg: Dict[str, Any]) -> None:
     endpoint = cfg["endpoint"]
@@ -25,7 +25,6 @@ def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str,
     max_steps = cfg["max_steps"]
     step_delay = cfg["step_delay"]
 
-    disabled = get_disabled_tools(tools_schema)
     os.makedirs(dump_dir, exist_ok=True)
 
     messages: List[Dict[str, Any]] = [
@@ -36,7 +35,7 @@ def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str,
     dump_idx = dump_start
     last_screen_w, last_screen_h = winapi.get_screen_size()
 
-    for _step in range(max_steps):
+    for _ in range(max_steps):
         resp = post_to_lm({
             "model": model_id,
             "messages": messages,
@@ -53,14 +52,20 @@ def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str,
         if not tool_calls:
             break
 
+        if len(tool_calls) > 1:
+            for extra_tc in tool_calls[1:]:
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": extra_tc["id"],
+                    "name": extra_tc["function"]["name"],
+                    "content": "error: only one tool call per response allowed"
+                })
+            tool_calls = tool_calls[:1]
+
         for tc in tool_calls:
             name = tc["function"]["name"]
             arg_str = tc["function"].get("arguments", "{}")
             call_id = tc["id"]
-
-            if name in disabled:
-                messages.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": "error tool_disabled"})
-                continue
 
             if name == "take_screenshot":
                 png_bytes, screen_w, screen_h = winapi.capture_screenshot_png(target_w, target_h)
@@ -73,7 +78,6 @@ def run_agent(system_prompt: str, task_prompt: str, tools_schema: List[Dict[str,
                         f.write(png_bytes)
                     dump_idx += 1
 
-                winapi.cursor_pos_normalized(screen_w, screen_h)
                 tool_text = "ok" if fn is None else ("ok file=" + fn)
                 b64 = base64.b64encode(png_bytes).decode("ascii")
 
